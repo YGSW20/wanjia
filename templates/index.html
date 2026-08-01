@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>玩价 - 潮玩比价，一搜就知道</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a href="/" class="logo">🎮 玩价</a>
+    <div class="search-wrapper">
+      <form class="search-box" action="/search" method="GET" style="max-width:none">
+        <input name="q" id="topSearch" placeholder="搜机体/潮玩…" autocomplete="off">
+        <button type="submit">🔍</button>
+      </form>
+      <div class="suggest-dropdown" id="suggestDrop"></div>
+    </div>
+    <nav class="nav-links">
+      <a href="/">首页</a>
+      <a href="/search">全部型号</a>
+      <span style="background:#eff6ff;color:#2563eb;padding:3px 8px;border-radius:5px;font-size:11px;font-weight:700">314款</span>
+    </nav>
+  </div>
+</header>
+
+<main class="main">
+  <!-- Hero -->
+  <section class="hero">
+    <h1>潮玩比价，一搜就知道</h1>
+    <p class="hero-sub">高达 · SHF · 乐高 · 泡泡玛特 · Hot Toys · 电子科技 — 五平台比价</p>
+    <form class="hero-search" action="/search" method="GET">
+      <input name="q" placeholder="搜「PGU」「卡牛」「RG沙扎比」…" autocomplete="off">
+      <button type="submit">搜比价</button>
+    </form>
+    <div class="hero-tags">
+      <span onclick="location.href='/search?q=PGU'">🔥 PGU</span>
+      <span onclick="location.href='/search?q=Labubu'">🔥 Labubu</span>
+      <span onclick="location.href='/search?q=黑神话悟空'">🔥 黑神话</span>
+      <span onclick="location.href='/search?q=塞尔达乐高'">🆕 塞尔达乐高</span>
+      <span onclick="location.href='/search?q=X100VI'">🆕 富士X100VI</span>
+    </div>
+  </section>
+
+  <!-- Stats -->
+  <section class="section">
+    <div class="stats-bar">
+      <div class="stat-item"><div class="stat-val">314</div><div class="stat-lbl">收录产品</div></div>
+      <div class="stat-item"><div class="stat-val">5</div><div class="stat-lbl">覆盖平台</div></div>
+      <div class="stat-item"><div class="stat-val">20+</div><div class="stat-lbl">覆盖品类</div></div>
+      <div class="stat-item"><div class="stat-val">实时</div><div class="stat-lbl">价格更新</div></div>
+    </div>
+  </section>
+
+  <!-- Hot Deals: Below MSRP -->
+  <section class="section">
+    <h2 class="section-title">💰 低于发售价 · 捡漏专区</h2>
+    <div class="deal-row">
+      {% for p in hot %}
+      {% if p.min_price < p.msrp %}
+      <a href="/product/{{ p.id }}" class="deal-card">
+        <div class="deal-card-badge">低于发售价</div>
+        <div class="deal-card-name">{{ p.name[:12] }}{% if p.name|length > 12 %}…{% endif %}</div>
+        <div class="deal-card-msrp">发售价 ¥{{ p.msrp }}</div>
+        <div class="deal-card-price">¥{{ p.min_price }} 起</div>
+      </a>
+      {% endif %}
+      {% endfor %}
+    </div>
+  </section>
+
+  <!-- Series Filter + All Models -->
+  <section class="section">
+    <h2 class="section-title">📋 按系列浏览</h2>
+    <div class="series-filter">
+      <button class="series-btn active" onclick="filterSeries('all')">全部</button>
+      <button class="series-btn" onclick="filterSeries('PG')">PG</button>
+      <button class="series-btn" onclick="filterSeries('MGEX')">MGEX</button>
+      <button class="series-btn" onclick="filterSeries('MGSD')">MGSD</button>
+      <button class="series-btn" onclick="filterSeries('MG')">MG</button>
+      <button class="series-btn" onclick="filterSeries('RG')">RG</button>
+      <button class="series-btn" onclick="filterSeries('HG')">HG</button>
+      <button class="series-btn" onclick="filterSeries('RE')">RE/100</button>
+      <button class="series-btn" onclick="filterSeries('FM')">FM</button>
+      <button class="series-btn" onclick="filterSeries('SHF')">SHF</button>
+      <button class="series-btn" onclick="filterSeries('乐高')">乐高</button>
+      <button class="series-btn" onclick="filterSeries('泡泡玛特')">泡泡玛特</button>
+      <button class="series-btn" onclick="filterSeries('Hot Toys')">Hot Toys</button>
+      <button class="series-btn" onclick="filterSeries('电子')">电子科技</button>
+    </div>
+    <div class="hot-grid" id="modelGrid">
+      {% for p in hot %}
+      <a href="/product/{{ p.id }}" class="hot-card" data-series="{{ p.series }}">
+        <div class="hot-card-badge">{{ p.series }}</div>
+        <div class="hot-card-name">{{ p.name }}</div>
+        <div class="hot-card-info">{{ p.platform_count }} 个平台在售</div>
+        <div class="hot-card-price">
+          <span class="hot-card-label">最低</span>
+          <span class="hot-card-num">¥{{ p.min_price }} 起</span>
+          {% if p.min_price < p.msrp %}
+          <span class="hot-card-deal">低于发售价</span>
+          {% endif %}
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+  </section>
+
+  <!-- Platforms -->
+  <section class="section">
+    <h2 class="section-title">覆盖平台</h2>
+    <div class="platform-row">
+      <div class="platform-item">🐟<br>闲鱼</div>
+      <div class="platform-item">🛒<br>京东</div>
+      <div class="platform-item">🛍️<br>淘宝</div>
+      <div class="platform-item">📱<br>拼多多</div>
+      <div class="platform-item">👟<br>得物</div>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="footer-inner">
+    <span>🎮 玩价 — 潮玩比价平台 · 从高达开始</span>
+    <span>价格由社区玩家贡献 · 仅供参考</span>
+  </div>
+</footer>
+
+<script>
+// ── Search autocomplete ──
+(function(){
+  var inp=document.getElementById('topSearch'),drop=document.getElementById('suggestDrop');
+  if(!inp||!drop)return;var timer;
+  inp.addEventListener('input',function(){clearTimeout(timer);var v=this.value.trim();if(v.length<1){drop.style.display='none';return}
+  timer=setTimeout(async function(){try{var res=await fetch('/api/suggest?q='+encodeURIComponent(v));var items=await res.json();if(!items.length){drop.style.display='none';return}drop.innerHTML=items.map(function(i,idx){return '<a class="suggest-item'+(idx===0?' active':'')+'" href="/product/'+i.id+'"><span class="suggest-name">'+i.name+'</span><span class="suggest-series">'+i.series+'</span></a>'}).join('');drop.style.display='block'}catch(e){}},150)});
+  document.addEventListener('click',function(e){if(!inp.parentElement.contains(e.target))drop.style.display='none'});
+})();
+// ── Back to top ──
+var btt=document.createElement('button');btt.textContent='⬆';btt.className='back-to-top';btt.onclick=function(){window.scrollTo({top:0,behavior:'smooth'})};document.body.appendChild(btt);window.addEventListener('scroll',function(){btt.style.display=window.scrollY>300?'block':'none'});
+function filterSeries(series) {
+  document.querySelectorAll('.series-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  document.querySelectorAll('#modelGrid .hot-card').forEach(card => {
+    if (series === 'all') { card.style.display = ''; return; }
+    var s = card.dataset.series || '';
+    if (series === '电子') { card.style.display = (s.includes('键盘')||s.includes('鼠标')||s.includes('耳机')||s.includes('音响')||s.includes('平板')||s.includes('相机')||s.includes('阅读')||s.includes('HiFi')||s.includes('TWS')) ? '' : 'none'; return; }
+    if (series === '乐高') { card.style.display = s.startsWith('乐高') ? '' : 'none'; return; }
+    card.style.display = (s === series || s.startsWith(series + ' ') || s.startsWith(series + '.')) ? '' : 'none';
+  });
+}
+</script>
+</body>
+</html>

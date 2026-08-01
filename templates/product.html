@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ product.name }} - 全网比价 - 玩价</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a href="/" class="logo">🎮 玩价</a>
+    <div class="search-wrapper">
+      <form class="search-box" action="/search" method="GET" style="max-width:none">
+        <input name="q" id="topSearch" placeholder="搜机体/潮玩…" autocomplete="off">
+        <button type="submit">🔍</button>
+      </form>
+      <div class="suggest-dropdown" id="suggestDrop"></div>
+    </div>
+    <nav class="nav-links">
+      <a href="/">首页</a>
+      <a href="/search">全部型号</a>
+    </nav>
+  </div>
+</header>
+
+<main class="main">
+  <!-- Breadcrumb -->
+  <div class="breadcrumb">
+    <a href="/">首页</a> › <a href="/search">全部型号</a> › {{ product.name }}
+  </div>
+
+  <!-- Product header -->
+  <section class="product-header">
+    <div class="ph-left">
+      <span class="ph-series">{{ product.series }}</span>
+      <h1>{{ product.name }}</h1>
+      <div class="ph-meta">
+        <span>{{ product.brand }}</span>
+        <span>发售价 ¥{{ product.msrp }}</span>
+        <span>{{ product.release_date }}</span>
+      </div>
+    </div>
+    <div class="ph-right">
+      <div class="ph-lowest-label">💰 当前最低价</div>
+      <div class="ph-lowest-price">¥{{ min_price }}</div>
+      {% if min_price < product.msrp %}
+      <div class="ph-deal">✅ 低于发售价 ¥{{ product.msrp - min_price }}，值得入手</div>
+      {% elif min_price <= product.msrp * 1.2 %}
+      <div class="ph-fair">⚖️ 价格合理区间</div>
+      {% else %}
+      <div class="ph-warn">⚠️ 黄牛溢价，建议等再版</div>
+      {% endif %}
+    </div>
+  </section>
+
+  <!-- Price table -->
+  <section class="section">
+    <h2 class="section-title">📊 全网实时比价</h2>
+    <div class="price-table-wrap">
+      <table class="price-table">
+        <thead>
+          <tr>
+            <th>平台</th>
+            <th>价格</th>
+            <th>比发售价</th>
+            <th>状态</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for pr in prices %}
+          <tr class="{% if pr.price_low == min_price %}row-best{% endif %} {% if pr.is_scalper %}row-scalper{% endif %}">
+            <td>
+              <span class="platform-badge platform-{{ pr.platform }}">{{ pr.platform }}</span>
+            </td>
+            <td class="td-price">
+              {% if pr.price_low == min_price %}<span class="best-tag">最低</span>{% endif %}
+              ¥{{ pr.price_low }} ~ ¥{{ pr.price_high }}
+            </td>
+            <td class="td-diff">
+              {% set diff = pr.price_low - product.msrp %}
+              {% if diff < 0 %}
+              <span class="diff-down">↓ ¥{{ -diff }}</span>
+              {% elif diff == 0 %}
+              <span class="diff-flat">持平</span>
+              {% else %}
+              <span class="diff-up">↑ ¥{{ diff }}</span>
+              {% if pr.is_scalper %}<span class="scalper-badge">黄牛价</span>{% endif %}
+              {% endif %}
+            </td>
+            <td>
+              {% if pr.in_stock %}
+              <span class="stock-ok">有货</span>
+              {% else %}
+              <span class="stock-out">缺货</span>
+              {% endif %}
+            </td>
+            <td><a href="{{ platform_search_url(pr.platform, product.name) }}" target="_blank" class="btn-go" rel="noreferrer noopener">去{{ pr.platform }}搜 →</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Price insight -->
+  <section class="section insight-section">
+    <h2 class="section-title">🧠 入手建议</h2>
+    <div class="insight-card">
+      {% if min_price < product.msrp %}
+      <p>💡 当前最低价 <strong>¥{{ min_price }}</strong> 已低于发售价 <strong>¥{{ product.msrp }}</strong>。如果你看到的价格在这个区间，就是正常入手价。注意：闲鱼二手和全新价格不同，看清楚成色。</p>
+      {% elif min_price <= product.msrp * 1.2 %}
+      <p>💡 当前价格略高于发售价但在合理范围内。如果可以接受小幅溢价，现在入手不算亏。建议优先看闲鱼个人卖家，避开淘宝高价黄牛。</p>
+      {% else %}
+      <p>⚠️ 当前最低价 <strong>¥{{ min_price }}</strong> 比发售价高了 <strong>¥{{ min_price - product.msrp }}</strong>，溢价明显。建议等万代再版放量或蹲闲鱼个人卖家。</p>
+      {% endif %}
+
+      <div class="insight-rules">
+        <div class="rule"><strong>合理入手价参考</strong>：¥{{ product.msrp }} ~ ¥{{ (product.msrp * 1.15)|int }}</div>
+        <div class="rule"><strong>黄牛预警线</strong>：超过 ¥{{ (product.msrp * 1.2)|int }} 需谨慎</div>
+        <div class="rule"><strong>最佳入手时机</strong>：再版到货后 1-2 周，闲鱼大量出货时</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Price history -->
+  <section class="section">
+    <h2 class="section-title">📈 价格记录</h2>
+    {% if history %}
+    <div class="price-chart" id="priceChart"></div>
+    <p style="font-size:11px;color:#94a3b8;margin-top:24px;text-align:center">{{ history|length }} 条记录 · 最低 ¥{{ min_price }} · 数据随玩家报价持续更新</p>
+    {% else %}
+    <div style="text-align:center;padding:40px;color:#94a3b8;background:#fff;border-radius:14px;border:1px solid #e2e8f0">
+      <div style="font-size:36px;margin-bottom:8px">📊</div>
+      <p>暂无历史价格数据</p>
+      <p style="font-size:12px;margin-top:4px">成为第一个报价格的玩家，帮大家记录真实行情</p>
+    </div>
+    {% endif %}
+  </section>
+
+  <!-- Cross-platform comparison -->
+  <section class="section">
+    <h2 class="section-title">🔄 平台横向对比</h2>
+    <table class="compare-table">
+      <thead>
+        <tr><th>平台</th><th>价格区间</th><th>比发售价</th><th>入手建议</th></tr>
+      </thead>
+      <tbody>
+        {% for pr in prices %}
+        <tr>
+          <td><span class="platform-badge platform-{{ pr.platform }}">{{ pr.platform }}</span></td>
+          <td>¥{{ pr.price_low }} ~ ¥{{ pr.price_high }}</td>
+          <td>
+            {% set d = pr.price_low - product.msrp %}
+            {% if d < 0 %}<span style="color:#059669;font-weight:700">↓ ¥{{ -d }}</span>
+            {% elif d == 0 %}<span style="color:#94a3b8">持平</span>
+            {% else %}<span style="color:#dc2626;font-weight:700">↑ ¥{{ d }}</span>{% endif %}
+          </td>
+          <td>
+            {% if pr.price_low < product.msrp %}
+            <span style="color:#059669;font-weight:600">✅ 值得入手</span>
+            {% elif pr.price_low <= product.msrp * 1.15 %}
+            <span style="color:#d97706;font-weight:600">⚖️ 价格合理</span>
+            {% elif pr.is_scalper %}
+            <span style="color:#dc2626;font-weight:600">⚠️ 黄牛价，等再版</span>
+            {% else %}
+            <span style="color:#dc2626;font-weight:600">⚠️ 溢价过高</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <!-- Related products -->
+  <section class="section">
+    <h2 class="section-title">📦 同系列其他型号</h2>
+    <div class="deal-row" id="relatedRow"><span style="color:#94a3b8;font-size:13px">加载中…</span></div>
+  </section>
+
+  <!-- Report price -->
+  <section class="section report-section">
+    <h2 class="section-title">📢 你买得更便宜？</h2>
+    <p class="report-desc">发现更低价格？提交截图，帮其他玩家省钱。审核通过后显示你的报价。</p>
+    <form class="report-form" onsubmit="reportPrice(event)">
+      <input type="hidden" id="pid" value="{{ product.id }}">
+      <select id="platform" required>
+        <option value="">选平台</option>
+        <option>闲鱼</option><option>京东</option><option>淘宝</option><option>拼多多</option><option>得物</option>
+      </select>
+      <input type="number" id="price" placeholder="你买到的价格 (¥)" required>
+      <input type="url" id="url" placeholder="商品链接（选填）">
+      <button type="submit">提交报价</button>
+    </form>
+    <div id="report-msg" class="report-msg" style="display:none"></div>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="footer-inner">
+    <span>🎮 玩价 — 潮玩比价平台 · 从高达开始，不止高达</span>
+    <span>价格数据由社区玩家贡献 · 仅供参考</span>
+  </div>
+</footer>
+
+<script>
+// ── Search autocomplete ──
+(function(){
+  var inp=document.getElementById('topSearch'),drop=document.getElementById('suggestDrop');
+  if(!inp||!drop)return;
+  var timer;
+  inp.addEventListener('input',function(){
+    clearTimeout(timer);
+    var v=this.value.trim();
+    if(v.length<1){drop.style.display='none';return}
+    timer=setTimeout(async function(){
+      try{
+        var res=await fetch('/api/suggest?q='+encodeURIComponent(v));
+        var items=await res.json();
+        if(!items.length){drop.style.display='none';return}
+        drop.innerHTML=items.map(function(i,idx){
+          return '<a class="suggest-item'+(idx===0?' active':'')+'" href="/product/'+i.id+'"><span class="suggest-name">'+i.name+'</span><span class="suggest-series">'+i.series+'</span></a>';
+        }).join('');
+        drop.style.display='block';
+      }catch(e){}
+    },150);
+  });
+  inp.addEventListener('keydown',function(e){
+    var items=drop.querySelectorAll('.suggest-item');
+    if(!items.length)return;
+    var active=drop.querySelector('.suggest-item.active'),idx=-1;
+    if(active)idx=Array.from(items).indexOf(active);
+    if(e.key==='ArrowDown'){e.preventDefault();idx=(idx+1)%items.length;items.forEach(function(i){i.classList.remove('active')});items[idx].classList.add('active')}
+    else if(e.key==='ArrowUp'){e.preventDefault();idx=idx<=0?items.length-1:idx-1;items.forEach(function(i){i.classList.remove('active')});items[idx].classList.add('active')}
+    else if(e.key==='Enter'&&active){e.preventDefault();active.click()}
+  });
+  document.addEventListener('click',function(e){if(!inp.parentElement.contains(e.target))drop.style.display='none'});
+})();
+
+// ── Related products ──
+(async function(){
+  var series='{{ product.series }}'.split(' ')[0].split('.')[0];
+  try{
+    var res=await fetch('/search?q='+encodeURIComponent(series));
+    var html=await res.text();
+    var parser=new DOMParser();
+    var doc=parser.parseFromString(html,'text/html');
+    var cards=doc.querySelectorAll('.result-card');
+    var row=document.getElementById('relatedRow');
+    if(!row)return;
+    row.innerHTML='';
+    var count=0;
+    cards.forEach(function(c){
+      if(count>=8)return;
+      var name=c.querySelector('.result-name');
+      var price=c.querySelector('.result-price');
+      if(name&&price&&!name.textContent.includes('{{ product.name[:6] }}')){
+        var a=document.createElement('a');
+        a.className='deal-card';
+        a.href=c.href;
+        a.innerHTML='<div class="deal-card-name">'+name.textContent.substring(0,14)+'</div><div class="deal-card-price">'+price.textContent+'</div>';
+        row.appendChild(a);
+        count++;
+      }
+    });
+    if(count===0)row.innerHTML='<span style="color:#94a3b8;font-size:13px">暂无同系列产品</span>';
+  }catch(e){}
+})();
+
+// ── Back to top ──
+var btt=document.createElement('button');
+btt.textContent='⬆';btt.className='back-to-top';
+btt.onclick=function(){window.scrollTo({top:0,behavior:'smooth'})};
+document.body.appendChild(btt);
+window.addEventListener('scroll',function(){btt.style.display=window.scrollY>300?'block':'none'});
+
+// Real price history chart
+(function(){
+  var chart=document.getElementById('priceChart');
+  if(!chart)return;
+  {% if history %}
+  var raw=[{% for h in history %}{price:{{ h.price }},date:'{{ h.recorded_at[:10] }}',plat:'{{ h.platform }}'},{% endfor %}];
+  raw.reverse();
+  var msrp={{ product.msrp }},minP={{ min_price }};
+  var allPrices=raw.map(function(r){return r.price});
+  allPrices.push(msrp);
+  var max=Math.max.apply(null,allPrices),min=Math.min.apply(null,allPrices);
+  var range=max-min||1;
+  var bars='',w=Math.min(60,Math.floor(700/raw.length));
+  for(var i=0;i<raw.length;i++){
+    var h=((raw[i].price-min)/range)*130+20;
+    var isLast=i===raw.length-1;
+    bars+='<div class="price-chart-bar" style="height:'+h+'px;left:'+(10+i*(w+8))+'px;width:'+w+'px;'+(isLast?'background:linear-gradient(180deg,#059669,#10b981)':'')+'" title="'+raw[i].plat+' ¥'+raw[i].price+'"></div>';
+    bars+='<div style="position:absolute;bottom:-18px;left:'+(5+i*(w+8))+'px;font-size:9px;color:#94a3b8;">'+raw[i].date.substring(5)+'</div>';
+  }
+  bars+='<div style="position:absolute;top:4px;right:8px;font-size:10px;color:#94a3b8">发售价 ¥'+msrp+'</div>';
+  chart.innerHTML=bars;
+  {% endif %}
+})();
+
+async function reportPrice(e) {
+  e.preventDefault();
+  const msg = document.getElementById('report-msg');
+  const data = {
+    product_id: parseInt(document.getElementById('pid').value),
+    platform: document.getElementById('platform').value,
+    price: parseInt(document.getElementById('price').value),
+    url: document.getElementById('url').value
+  };
+  try {
+    const res = await fetch('/api/report', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(data)
+    });
+    if (res.ok) {
+      msg.style.display = 'block';
+      msg.style.background = '#d1fae5';
+      msg.style.color = '#065f46';
+      msg.textContent = '✅ 报价已提交！感谢你的贡献。';
+    }
+  } catch(err) {
+    msg.style.display = 'block';
+    msg.style.background = '#fee2e2';
+    msg.style.color = '#991b1b';
+    msg.textContent = '提交失败，请重试。';
+  }
+}
+</script>
+</body>
+</html>
