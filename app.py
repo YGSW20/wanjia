@@ -161,7 +161,7 @@ def search():
 def product(pid):
     db = get_db()
     p = db.execute('SELECT * FROM products WHERE id = ?', (pid,)).fetchone()
-    if not p: return 'Not found', 404
+    if not p: return render_template('404.html', query=''), 404
     prices = db.execute('SELECT * FROM prices WHERE product_id = ? ORDER BY price_low ASC', (pid,)).fetchall()
     min_price = min(pr['price_low'] for pr in prices) if prices else 0
     history = db.execute('''
@@ -319,6 +319,10 @@ def admin_delete_product(pid):
     db.execute('DELETE FROM products WHERE id=?',(pid,))
     db.commit()
     return jsonify({'ok': True})
+
+@app.errorhandler(404)
+def not_found(e):
+    return render_template('404.html', query=''), 404
 
 if __name__ == '__main__':
     import os as _os
