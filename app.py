@@ -168,7 +168,16 @@ def product(pid):
         SELECT platform, price, recorded_at FROM price_history
         WHERE product_id = ? ORDER BY recorded_at DESC LIMIT 20
     ''', (pid,)).fetchall()
-    return render_template('product.html', product=p, prices=prices, min_price=min_price, history=history)
+    # Related products: same series
+    series_base = p['series'].split(' ')[0].split('.')[0]
+    related = db.execute('''
+        SELECT p2.*, MIN(pr.price_low) as min_price
+        FROM products p2 JOIN prices pr ON p2.id = pr.product_id
+        WHERE (p2.series LIKE ? OR p2.series = ?) AND p2.id != ? AND pr.in_stock = 1
+        GROUP BY p2.id ORDER BY p2.id LIMIT 8
+    ''', (f'{series_base}%', series_base, pid)).fetchall()
+
+    return render_template('product.html', product=p, prices=prices, min_price=min_price, history=history, related=related)
 
 @app.route('/api/report', methods=['POST'])
 def report():

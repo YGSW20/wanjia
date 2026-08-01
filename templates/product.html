@@ -175,10 +175,19 @@
   </section>
 
   <!-- Related products -->
+  {% if related %}
   <section class="section">
     <h2 class="section-title">📦 同系列其他型号</h2>
-    <div class="deal-row" id="relatedRow"><span style="color:#94a3b8;font-size:13px">加载中…</span></div>
+    <div class="deal-row">
+      {% for r in related %}
+      <a href="/product/{{ r.id }}" class="deal-card">
+        <div class="deal-card-name">{{ r.name[:14] }}{% if r.name|length > 14 %}…{% endif %}</div>
+        <div class="deal-card-price">¥{{ r.min_price }} 起</div>
+      </a>
+      {% endfor %}
+    </div>
   </section>
+  {% endif %}
 
   <!-- Report price -->
   <section class="section report-section">
@@ -237,36 +246,6 @@
     else if(e.key==='Enter'&&active){e.preventDefault();active.click()}
   });
   document.addEventListener('click',function(e){if(!inp.parentElement.contains(e.target))drop.style.display='none'});
-})();
-
-// ── Related products ──
-(async function(){
-  var series='{{ product.series }}'.split(' ')[0].split('.')[0];
-  try{
-    var res=await fetch('/search?q='+encodeURIComponent(series));
-    var html=await res.text();
-    var parser=new DOMParser();
-    var doc=parser.parseFromString(html,'text/html');
-    var cards=doc.querySelectorAll('.result-card');
-    var row=document.getElementById('relatedRow');
-    if(!row)return;
-    row.innerHTML='';
-    var count=0;
-    cards.forEach(function(c){
-      if(count>=8)return;
-      var name=c.querySelector('.result-name');
-      var price=c.querySelector('.result-price');
-      if(name&&price&&!name.textContent.includes('{{ product.name[:6] }}')){
-        var a=document.createElement('a');
-        a.className='deal-card';
-        a.href=c.href;
-        a.innerHTML='<div class="deal-card-name">'+name.textContent.substring(0,14)+'</div><div class="deal-card-price">'+price.textContent+'</div>';
-        row.appendChild(a);
-        count++;
-      }
-    });
-    if(count===0)row.innerHTML='<span style="color:#94a3b8;font-size:13px">暂无同系列产品</span>';
-  }catch(e){}
 })();
 
 // ── Back to top ──
