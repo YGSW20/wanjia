@@ -1,0 +1,7 @@
+*.db
+__pycache__
+*.pyc
+.git
+Dockerfile
+README.md
+seed_models.pyc

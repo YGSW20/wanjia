@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>玩价 · 管理后台</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"PingFang SC","Microsoft YaHei",sans-serif;background:#f1f5f9;color:#1e293b}
+header{background:#0f172a;color:#fff;padding:16px 24px;display:flex;justify-content:space-between;align-items:center}
+header h1{font-size:18px}header a{color:#94a3b8;font-size:13px}
+main{max-width:1400px;margin:0 auto;padding:24px}
+.stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;margin-bottom:24px}
+.stat{background:#fff;padding:16px;border-radius:10px;border:1px solid #e2e8f0;text-align:center}
+.stat-val{font-size:24px;font-weight:800;color:#2563eb}.stat-lbl{font-size:12px;color:#94a3b8;margin-top:4px}
+.toolbar{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
+.btn{display:inline-block;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;border:none;text-decoration:none}
+.btn-primary{background:#2563eb;color:#fff}.btn-primary:hover{background:#1d4ed8}
+.btn-danger{background:#dc2626;color:#fff}.btn-danger:hover{background:#b91c1c}
+.btn-sm{padding:4px 10px;font-size:11px}
+input,select{padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;outline:none}
+input:focus{border-color:#2563eb}
+table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e2e8f0}
+th{background:#f8fafc;padding:10px 12px;text-align:left;font-size:12px;color:#64748b;font-weight:700;border-bottom:1px solid #e2e8f0}
+td{padding:8px 12px;border-bottom:1px solid #f1f5f9;font-size:13px}
+tr:hover{background:#f8fafc}.td-price{font-weight:700;color:#2563eb}
+.msg{background:#d1fae5;color:#065f46;padding:12px 16px;border-radius:8px;margin-bottom:16px}
+.price-input{width:80px;text-align:center}
+</style>
+</head>
+<body>
+<header>
+  <h1>🎮 玩价 · 管理后台</h1>
+  <a href="/">← 回前台</a>
+</header>
+<main>
+  <div class="stats">
+    <div class="stat"><div class="stat-val">{{ stats.products }}</div><div class="stat-lbl">产品总数</div></div>
+    <div class="stat"><div class="stat-val">{{ stats.prices }}</div><div class="stat-lbl">价格条目</div></div>
+    <div class="stat"><div class="stat-val">{{ stats.history }}</div><div class="stat-lbl">历史记录</div></div>
+    <div class="stat"><div class="stat-val">{{ stats.categories }}</div><div class="stat-lbl">品类数</div></div>
+    <div class="stat"><div class="stat-val">{{ stats.platforms }}</div><div class="stat-lbl">平台数</div></div>
+  </div>
+
+  <div class="toolbar">
+    <a href="/admin/product/add" class="btn btn-primary">+ 添加产品</a>
+    <input type="text" id="filterInput" placeholder="搜索产品…" oninput="filterTable()" style="flex:1;max-width:300px">
+  </div>
+
+  <table id="productTable">
+    <thead>
+      <tr><th>ID</th><th>名称</th><th>系列</th><th>发售价</th><th>最低价</th><th>平台数</th><th>操作</th></tr>
+    </thead>
+    <tbody>
+      {% for p in products %}
+      <tr>
+        <td>{{ p.id }}</td>
+        <td><a href="/product/{{ p.id }}" target="_blank">{{ p.name }}</a></td>
+        <td>{{ p.series }}</td>
+        <td>¥{{ p.msrp }}</td>
+        <td class="td-price">{% if p.min_price %}¥{{ p.min_price }}{% else %}-{% endif %}</td>
+        <td>{{ p.pc }}</td>
+        <td>
+          <a href="/admin/product/{{ p.id }}/edit" class="btn btn-primary btn-sm">编辑</a>
+          <button class="btn btn-danger btn-sm" onclick="deleteProduct({{ p.id }})">删除</button>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</main>
+<script>
+function filterTable(){
+  var v=document.getElementById('filterInput').value.toLowerCase();
+  document.querySelectorAll('#productTable tbody tr').forEach(function(r){
+    r.style.display=r.textContent.toLowerCase().includes(v)?'':'none';
+  });
+}
+async function deleteProduct(pid){
+  if(!confirm('确定删除产品 #'+pid+'？此操作不可恢复。'))return;
+  var res=await fetch('/admin/product/'+pid+'/delete',{method:'POST'});
+  if(res.ok)location.reload();else alert('删除失败');
+}
+</script>
+</body>
+</html>

@@ -201,6 +201,115 @@ def suggest():
 # Initialize database on startup (idempotent — runs both via gunicorn and directly)
 init_db()
 
+# ── Admin ──
+ADMIN_PASSWORD = 'wanjia2026'
+
+def check_admin():
+    auth = request.authorization
+    return auth and auth.username == 'admin' and auth.password == ADMIN_PASSWORD
+
+@app.route('/admin')
+def admin_dashboard():
+    if not check_admin():
+        return ('请登录', 401, {'WWW-Authenticate': 'Basic realm="玩价管理后台"'})
+    db = get_db()
+    stats = {
+        'products': db.execute('SELECT COUNT(*) as c FROM products').fetchone()['c'],
+        'prices': db.execute('SELECT COUNT(*) as c FROM prices').fetchone()['c'],
+        'history': db.execute('SELECT COUNT(*) as c FROM price_history').fetchone()['c'],
+        'categories': db.execute('SELECT COUNT(DISTINCT series) as c FROM products').fetchone()['c'],
+        'platforms': db.execute('SELECT COUNT(DISTINCT platform) as c FROM prices').fetchone()['c'],
+    }
+    products = db.execute('''
+        SELECT p.*, MIN(pr.price_low) as min_price, COUNT(pr.id) as pc
+        FROM products p LEFT JOIN prices pr ON p.id = pr.product_id
+        GROUP BY p.id ORDER BY p.id DESC LIMIT 50
+    ''').fetchall()
+    return render_template('admin.html', stats=stats, products=products)
+
+@app.route('/admin/product/add', methods=['GET','POST'])
+def admin_add_product():
+    if not check_admin():
+        return ('请登录', 401, {'WWW-Authenticate': 'Basic realm="玩价管理后台"'})
+    db = get_db()
+    msg = ''
+    if request.method == 'POST':
+        name = request.form['name'].strip()
+        series = request.form['series'].strip()
+        msrp = int(request.form['msrp'])
+        brand = request.form.get('brand','万代').strip()
+        year = request.form.get('year','2024').strip()
+        kw = request.form.get('keywords','').strip()
+        pid = db.execute('SELECT COALESCE(MAX(id),0)+1 FROM products').fetchone()[0]
+        db.execute('INSERT INTO products VALUES (?,?,?,?,?,?,?,?)',
+                   (pid, name, series, brand, year, msrp, None, f'{name} {series} {kw}'))
+        # Generate prices
+        import datetime
+        now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
+        for plat, (lm, hm) in [('闲鱼',(0.7,0.95)),('京东',(0.85,1.05)),('淘宝',(0.82,1.0)),('拼多多',(0.75,0.95)),('得物',(0.9,1.15))]:
+            pid2 = db.execute('SELECT COALESCE(MAX(id),0)+1 FROM prices').fetchone()[0]
+            db.execute('INSERT INTO prices VALUES (?,?,?,?,?,?,?,?,?)',
+                       (pid2, pid, plat, int(msrp*lm), int(msrp*hm), '', 1, 0, now))
+        db.execute('INSERT INTO price_history (product_id, platform, price, recorded_at) VALUES (?,?,?,?)',
+                   (pid, '全网最低', int(msrp*0.7), now))
+        db.commit()
+        msg = f'✅ {name} 已添加！<a href="/product/{pid}">查看</a>'
+    return render_template('admin_form.html', msg=msg, product=None)
+
+@app.route('/admin/product/<int:pid>/edit', methods=['GET','POST'])
+def admin_edit_product(pid):
+    if not check_admin():
+        return ('请登录', 401, {'WWW-Authenticate': 'Basic realm="玩价管理后台"'})
+    db = get_db()
+    p = db.execute('SELECT * FROM products WHERE id=?',(pid,)).fetchone()
+    if not p: return 'Not found', 404
+    msg = ''
+    if request.method == 'POST':
+        name = request.form['name'].strip()
+        series = request.form['series'].strip()
+        msrp = int(request.form['msrp'])
+        kw = request.form.get('keywords','').strip()
+        db.execute('UPDATE products SET name=?,series=?,msrp=?,search_keywords=? WHERE id=?',
+                   (name, series, msrp, f'{name} {series} {kw}', pid))
+        db.commit()
+        msg = f'✅ {name} 已更新！<a href="/product/{pid}">查看</a>'
+        p = db.execute('SELECT * FROM products WHERE id=?',(pid,)).fetchone()
+    prices = db.execute('SELECT * FROM prices WHERE product_id=? ORDER BY platform',(pid,)).fetchall()
+    return render_template('admin_form.html', msg=msg, product=p, prices=prices)
+
+@app.route('/admin/product/<int:pid>/price', methods=['POST'])
+def admin_update_price():
+    if not check_admin():
+        return ('请登录', 401, {'WWW-Authenticate': 'Basic realm="玩价管理后台"'})
+    db = get_db()
+    pid = request.form.get('pid')
+    import datetime
+    now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
+    for key in request.form:
+        if key.startswith('price_low_'):
+            price_id = int(key.replace('price_low_',''))
+            low = int(request.form[key])
+            high = int(request.form.get(f'price_high_{price_id}', low))
+            db.execute('UPDATE prices SET price_low=?, price_high=?, updated_at=? WHERE id=?',
+                       (low, high, now, price_id))
+            plat = db.execute('SELECT platform, product_id FROM prices WHERE id=?',(price_id,)).fetchone()
+            if plat:
+                db.execute('INSERT INTO price_history (product_id, platform, price, recorded_at) VALUES (?,?,?,?)',
+                           (plat['product_id'], plat['platform'], low, now))
+    db.commit()
+    return jsonify({'ok': True})
+
+@app.route('/admin/product/<int:pid>/delete', methods=['POST'])
+def admin_delete_product(pid):
+    if not check_admin():
+        return ('请登录', 401, {'WWW-Authenticate': 'Basic realm="玩价管理后台"'})
+    db = get_db()
+    db.execute('DELETE FROM prices WHERE product_id=?',(pid,))
+    db.execute('DELETE FROM price_history WHERE product_id=?',(pid,))
+    db.execute('DELETE FROM products WHERE id=?',(pid,))
+    db.commit()
+    return jsonify({'ok': True})
+
 if __name__ == '__main__':
     import os as _os
     port = int(_os.environ.get('PORT', 5000))
