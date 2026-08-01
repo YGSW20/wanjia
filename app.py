@@ -205,25 +205,35 @@ init_db()
 ADMIN_PASSWORD = 'wanjia2026'
 
 def check_admin():
+    # Try Basic Auth header
     auth = request.authorization
-    return auth and auth.username == 'admin' and auth.password == ADMIN_PASSWORD
+    if auth and auth.username == 'admin' and auth.password == ADMIN_PASSWORD:
+        return True
+    # Fallback: cookie/token for proxy environments that strip auth header
+    token = request.args.get('token', '') or request.cookies.get('admin_token', '')
+    if token == ADMIN_PASSWORD:
+        return True
+    return False
 
 @app.route('/admin')
 def admin_dashboard():
     if not check_admin():
         return ('请登录', 401, {'WWW-Authenticate': 'Basic realm="玩价管理后台"'})
     db = get_db()
-    stats = {
-        'products': db.execute('SELECT COUNT(*) as c FROM products').fetchone()['c'],
-        'prices': db.execute('SELECT COUNT(*) as c FROM prices').fetchone()['c'],
-        'history': db.execute('SELECT COUNT(*) as c FROM price_history').fetchone()['c'],
-        'categories': db.execute('SELECT COUNT(DISTINCT series) as c FROM products').fetchone()['c'],
-        'platforms': db.execute('SELECT COUNT(DISTINCT platform) as c FROM prices').fetchone()['c'],
-    }
+    # Combine stats into one query for speed
+    row = db.execute('''
+        SELECT
+            (SELECT COUNT(*) FROM products) as products,
+            (SELECT COUNT(*) FROM prices) as prices,
+            (SELECT COUNT(*) FROM price_history) as history,
+            (SELECT COUNT(DISTINCT series) FROM products) as categories,
+            (SELECT COUNT(DISTINCT platform) FROM prices) as platforms
+    ''').fetchone()
+    stats = dict(row)
     products = db.execute('''
         SELECT p.*, MIN(pr.price_low) as min_price, COUNT(pr.id) as pc
         FROM products p LEFT JOIN prices pr ON p.id = pr.product_id
-        GROUP BY p.id ORDER BY p.id DESC LIMIT 50
+        GROUP BY p.id ORDER BY p.id DESC LIMIT 30
     ''').fetchall()
     return render_template('admin.html', stats=stats, products=products)
 
