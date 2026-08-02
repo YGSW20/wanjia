@@ -73,8 +73,20 @@ def init_db():
             recorded_at TEXT,
             FOREIGN KEY (product_id) REFERENCES products(id)
         );
+        CREATE TABLE IF NOT EXISTS comments (
+            id INTEGER PRIMARY KEY,
+            product_id INTEGER,
+            author TEXT,
+            content TEXT,
+            created_at TEXT,
+            FOREIGN KEY (product_id) REFERENCES products(id)
+        );
     ''')
     db.commit()
+    try: db.execute('ALTER TABLE prices ADD COLUMN reporter TEXT DEFAULT ""'); db.commit()
+    except: pass
+    try: db.execute('ALTER TABLE price_history ADD COLUMN reporter TEXT DEFAULT ""'); db.commit()
+    except: pass
 
     # Seed data if empty
     if db.execute('SELECT COUNT(*) FROM products').fetchone()[0] == 0:
@@ -213,12 +225,49 @@ def report():
     pid = int(data['product_id'])
     price = int(data['price'])
     plat = data.get('platform', '闲鱼')
-    db.execute('INSERT INTO prices (product_id, platform, price_low, price_high, in_stock, is_scalper, source, updated_at) VALUES (?,?,?,?,1,0,1,?)',
-               (pid, plat, price, price, now))
-    db.execute('INSERT INTO price_history (product_id, platform, price, recorded_at) VALUES (?,?,?,?)',
-               (pid, plat, price, now))
+    reporter = data.get('nickname', '').strip()[:20]
+    db.execute('INSERT INTO prices (product_id, platform, price_low, price_high, in_stock, is_scalper, source, reporter, updated_at) VALUES (?,?,?,?,1,0,1,?,?)',
+               (pid, plat, price, price, reporter, now))
+    db.execute('INSERT INTO price_history (product_id, platform, price, reporter, recorded_at) VALUES (?,?,?,?,?)',
+               (pid, plat, price, reporter, now))
     db.commit()
     return jsonify({'ok': True})
+
+@app.route('/api/comments/<int:pid>')
+def api_comments(pid):
+    db = get_db()
+    if request.method == 'GET':
+        rows = db.execute('SELECT * FROM comments WHERE product_id=? ORDER BY created_at DESC LIMIT 30', (pid,)).fetchall()
+        return jsonify([{'id': r['id'], 'author': r['author'], 'content': r['content'], 'created_at': r['created_at']} for r in rows])
+
+@app.route('/api/comment', methods=['POST'])
+def api_add_comment():
+    data = request.get_json(silent=True)
+    if data is None:
+        import json as _json
+        try: data = _json.loads(request.get_data(as_text=True))
+        except: data = None
+    if not data or not data.get('product_id') or not data.get('content'):
+        return jsonify({'ok': False}), 400
+    db = get_db()
+    import datetime
+    now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
+    author = data.get('author', '匿名玩家').strip()[:20] or '匿名玩家'
+    content = data.get('content', '').strip()[:500]
+    db.execute('INSERT INTO comments (product_id, author, content, created_at) VALUES (?,?,?,?)',
+               (int(data['product_id']), author, content, now))
+    db.commit()
+    return jsonify({'ok': True})
+
+@app.route('/api/leaderboard')
+def api_leaderboard():
+    db = get_db()
+    rows = db.execute('''
+        SELECT reporter as name, COUNT(*) as cnt
+        FROM price_history WHERE reporter != ''
+        GROUP BY reporter ORDER BY cnt DESC LIMIT 10
+    ''').fetchall()
+    return jsonify([{'name': r['name'], 'count': r['cnt']} for r in rows])
 
 @app.route('/api/deals')
 def api_deals():

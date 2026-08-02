@@ -112,6 +112,12 @@
     <p style="text-align:center;margin-top:12px"><a href="/search" style="font-size:13px;color:#2563eb;font-weight:600">📢 你也买到好价？去产品页提交报价 →</a></p>
   </section>
 
+  <!-- Leaderboard -->
+  <section class="section">
+    <h2 class="section-title">🏆 贡献榜</h2>
+    <div id="leaderboardList" style="max-width:500px;margin:0 auto"><span style="color:#94a3b8;font-size:13px">加载中…</span></div>
+  </section>
+
   <!-- Platforms -->
   <section class="section">
     <h2 class="section-title">覆盖平台</h2>
@@ -140,6 +146,13 @@
   inp.addEventListener('input',function(){clearTimeout(timer);var v=this.value.trim();if(v.length<1){drop.style.display='none';return}
   timer=setTimeout(async function(){try{var res=await fetch('/api/suggest?q='+encodeURIComponent(v));var items=await res.json();if(!items.length){drop.style.display='none';return}drop.innerHTML=items.map(function(i,idx){return '<a class="suggest-item'+(idx===0?' active':'')+'" href="/product/'+i.id+'"><span class="suggest-name">'+i.name+'</span><span class="suggest-series">'+i.series+'</span></a>'}).join('');drop.style.display='block'}catch(e){}},150)});
   document.addEventListener('click',function(e){if(!inp.parentElement.contains(e.target))drop.style.display='none'});
+})();
+// ── Leaderboard ──
+(async function(){
+  var lb=document.getElementById('leaderboardList');if(!lb)return;
+  try{var res=await fetch('/api/leaderboard');var data=await res.json();
+    if(!data.length){lb.innerHTML='<span style="color:#94a3b8;font-size:13px">还没有玩家上榜，去产品页提交报价吧！</span>';return}
+    lb.innerHTML=data.map(function(d,i){var m=['🥇','🥈','🥉'];return '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 16px;background:#fff;border-radius:10px;margin-bottom:6px;border:1px solid #e2e8f0"><span>'+(m[i]||(i+1))+' <strong>'+d.name+'</strong></span><span style="color:#2563eb;font-weight:700">'+d.count+' 条报价</span></div>'}).join('')}catch(e){}
 })();
 // ── Deal feed ──
 (async function(){
