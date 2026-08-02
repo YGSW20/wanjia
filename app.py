@@ -365,6 +365,8 @@ def admin_delete_product(pid):
     if not check_admin():
         return ('请登录', 401, {'WWW-Authenticate': 'Basic realm="玩价管理后台"'})
     db = get_db()
+    p = db.execute('SELECT id FROM products WHERE id=?',(pid,)).fetchone()
+    if not p: return jsonify({'ok': False, 'error': '产品不存在'}), 404
     db.execute('DELETE FROM prices WHERE product_id=?',(pid,))
     db.execute('DELETE FROM price_history WHERE product_id=?',(pid,))
     db.execute('DELETE FROM products WHERE id=?',(pid,))
