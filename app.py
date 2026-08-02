@@ -52,9 +52,12 @@ def init_db():
             url TEXT,
             in_stock INTEGER DEFAULT 1,
             is_scalper INTEGER DEFAULT 0,
+            source INTEGER DEFAULT 0,
             updated_at TEXT,
             FOREIGN KEY (product_id) REFERENCES products(id)
         );
+        -- Migration for existing DBs: add source column if missing
+        ALTER TABLE prices ADD COLUMN source INTEGER DEFAULT 0;
         CREATE TABLE IF NOT EXISTS price_history (
             id INTEGER PRIMARY KEY,
             product_id INTEGER,
@@ -97,8 +100,9 @@ def seed_data(db):
     for pid, (msrp, pop) in price_specs.items():
         for plat_data in gen_prices(pid, msrp, pop):
             price_id += 1
-            prices.append((price_id,) + plat_data[:4] + (1, plat_data[4]) + (now,))
-    db.executemany('INSERT INTO prices (id, product_id, platform, price_low, price_high, in_stock, is_scalper, updated_at) VALUES (?,?,?,?,?,?,?,?)', prices)
+            # (price_id, pid, platform, low, high, in_stock=1, scalper, source=0, now)
+            prices.append((price_id,) + plat_data[:4] + (1, plat_data[4], 0) + (now,))
+    db.executemany('INSERT INTO prices (id, product_id, platform, price_low, price_high, in_stock, is_scalper, source, updated_at) VALUES (?,?,?,?,?,?,?,?,?)', prices)
 
     # Seed price_history with initial snapshot
     for pid, (_, _) in price_specs.items():
@@ -185,12 +189,26 @@ def report():
     db = get_db()
     import datetime
     now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
-    db.execute('INSERT INTO prices (product_id, platform, price_low, price_high, in_stock, is_scalper, updated_at) VALUES (?,?,?,?,1,0,?)',
+    db.execute('INSERT INTO prices (product_id, platform, price_low, price_high, in_stock, is_scalper, source, updated_at) VALUES (?,?,?,?,1,0,1,?)',
                (data['product_id'], data['platform'], data['price'], data['price'], now))
     db.execute('INSERT INTO price_history (product_id, platform, price, recorded_at) VALUES (?,?,?,?)',
                (data['product_id'], data['platform'], data['price'], now))
     db.commit()
     return jsonify({'ok': True})
+
+@app.route('/api/deals')
+def api_deals():
+    db = get_db()
+    deals = db.execute('''
+        SELECT pr.id, pr.platform, pr.price_low, pr.updated_at, p.id as pid, p.name, p.series
+        FROM prices pr JOIN products p ON pr.product_id = p.id
+        WHERE pr.source = 1
+        ORDER BY pr.updated_at DESC LIMIT 20
+    ''').fetchall()
+    return jsonify([{
+        'id': d['id'], 'platform': d['platform'], 'price': d['price_low'],
+        'time': d['updated_at'], 'pid': d['pid'], 'name': d['name'], 'series': d['series']
+    } for d in deals])
 
 @app.route('/api/suggest')
 def suggest():

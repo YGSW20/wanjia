@@ -107,6 +107,13 @@
     </div>
   </section>
 
+  <!-- Deal Feed -->
+  <section class="section">
+    <h2 class="section-title">🔥 玩家最新报价</h2>
+    <div class="deal-row" id="dealFeed"><span style="color:#94a3b8;font-size:13px">加载中…</span></div>
+    <p style="text-align:center;margin-top:12px"><a href="/search" style="font-size:13px;color:#2563eb;font-weight:600">📢 你也买到好价？去产品页提交报价 →</a></p>
+  </section>
+
   <!-- Platforms -->
   <section class="section">
     <h2 class="section-title">覆盖平台</h2>
@@ -135,6 +142,13 @@
   inp.addEventListener('input',function(){clearTimeout(timer);var v=this.value.trim();if(v.length<1){drop.style.display='none';return}
   timer=setTimeout(async function(){try{var res=await fetch('/api/suggest?q='+encodeURIComponent(v));var items=await res.json();if(!items.length){drop.style.display='none';return}drop.innerHTML=items.map(function(i,idx){return '<a class="suggest-item'+(idx===0?' active':'')+'" href="/product/'+i.id+'"><span class="suggest-name">'+i.name+'</span><span class="suggest-series">'+i.series+'</span></a>'}).join('');drop.style.display='block'}catch(e){}},150)});
   document.addEventListener('click',function(e){if(!inp.parentElement.contains(e.target))drop.style.display='none'});
+})();
+// ── Deal feed ──
+(async function(){
+  var row=document.getElementById('dealFeed');if(!row)return;
+  try{var res=await fetch('/api/deals');var deals=await res.json();
+    if(!deals.length){row.innerHTML='<span style="color:#94a3b8;font-size:13px">还没有玩家报价，<a href=\"/search\">去产品页</a>提交第一笔！</span>';return}
+    row.innerHTML=deals.map(function(d){return '<a href=\"/product/'+d.pid+'\" class=\"deal-card\"><div class=\"deal-card-badge\">真实报价</div><div class=\"deal-card-name\">'+d.name.substring(0,12)+'</div><div class=\"deal-card-price\">¥'+d.price+' <span style=\"font-size:10px;color:#94a3b8\">'+d.platform+'</span></div></a>'}).join('')}catch(e){}
 })();
 // ── Back to top ──
 var btt=document.createElement('button');btt.textContent='⬆';btt.className='back-to-top';btt.onclick=function(){window.scrollTo({top:0,behavior:'smooth'})};document.body.appendChild(btt);window.addEventListener('scroll',function(){btt.style.display=window.scrollY>300?'block':'none'});
