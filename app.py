@@ -192,14 +192,29 @@ def product(pid):
 
 @app.route('/api/report', methods=['POST'])
 def report():
-    data = request.get_json()
+    data = request.get_json(silent=True)
+    if data is None:
+        # Fallback: try form data or raw parse
+        if request.form:
+            data = request.form.to_dict()
+        else:
+            import json as _json
+            try:
+                data = _json.loads(request.get_data(as_text=True))
+            except:
+                data = None
+    if not data or not data.get('product_id') or not data.get('price'):
+        return jsonify({'ok': False, 'error': '缺少 product_id 或 price'}), 400
     db = get_db()
     import datetime
     now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
+    pid = int(data['product_id'])
+    price = int(data['price'])
+    plat = data.get('platform', '闲鱼')
     db.execute('INSERT INTO prices (product_id, platform, price_low, price_high, in_stock, is_scalper, source, updated_at) VALUES (?,?,?,?,1,0,1,?)',
-               (data['product_id'], data['platform'], data['price'], data['price'], now))
+               (pid, plat, price, price, now))
     db.execute('INSERT INTO price_history (product_id, platform, price, recorded_at) VALUES (?,?,?,?)',
-               (data['product_id'], data['platform'], data['price'], now))
+               (pid, plat, price, now))
     db.commit()
     return jsonify({'ok': True})
 
