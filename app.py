@@ -358,8 +358,8 @@ def admin_add_product():
         now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
         for plat, (lm, hm) in [('闲鱼',(0.7,0.95)),('京东',(0.85,1.05)),('淘宝',(0.82,1.0)),('拼多多',(0.75,0.95)),('得物',(0.9,1.15))]:
             pid2 = db.execute('SELECT COALESCE(MAX(id),0)+1 FROM prices').fetchone()[0]
-            db.execute('INSERT INTO prices VALUES (?,?,?,?,?,?,?,?,?)',
-                       (pid2, pid, plat, int(msrp*lm), int(msrp*hm), '', 1, 0, now))
+            db.execute('INSERT INTO prices (id, product_id, platform, price_low, price_high, url, in_stock, is_scalper, source, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)',
+                       (pid2, pid, plat, int(msrp*lm), int(msrp*hm), '', 1, 0, 0, now))
         db.execute('INSERT INTO price_history (product_id, platform, price, recorded_at) VALUES (?,?,?,?)',
                    (pid, '全网最低', int(msrp*0.7), now))
         db.commit()
