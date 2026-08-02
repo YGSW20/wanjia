@@ -56,8 +56,15 @@ def init_db():
             updated_at TEXT,
             FOREIGN KEY (product_id) REFERENCES products(id)
         );
-        -- Migration for existing DBs: add source column if missing
-        ALTER TABLE prices ADD COLUMN source INTEGER DEFAULT 0;
+    ''')
+    db.commit()
+    # Migration: add source column if missing (safe retry)
+    try:
+        db.execute('ALTER TABLE prices ADD COLUMN source INTEGER DEFAULT 0')
+        db.commit()
+    except:
+        pass
+    db.executescript('''
         CREATE TABLE IF NOT EXISTS price_history (
             id INTEGER PRIMARY KEY,
             product_id INTEGER,
