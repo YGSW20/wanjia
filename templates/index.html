@@ -57,15 +57,13 @@
   <section class="section">
     <h2 class="section-title">💰 低于发售价 · 捡漏专区</h2>
     <div class="deal-row">
-      {% for p in hot %}
-      {% if p.min_price < p.msrp %}
-      <a href="/product/{{ p.id }}" class="deal-card">
+      {% for d in deals %}
+      <a href="/product/{{ d.id }}" class="deal-card">
         <div class="deal-card-badge">低于发售价</div>
-        <div class="deal-card-name">{{ p.name[:12] }}{% if p.name|length > 12 %}…{% endif %}</div>
-        <div class="deal-card-msrp">发售价 ¥{{ p.msrp }}</div>
-        <div class="deal-card-price">¥{{ p.min_price }} 起</div>
+        <div class="deal-card-name">{{ d.name[:12] }}{% if d.name|length > 12 %}…{% endif %}</div>
+        <div class="deal-card-msrp">发售价 ¥{{ d.msrp }}</div>
+        <div class="deal-card-price">¥{{ d.min_price }} 起</div>
       </a>
-      {% endif %}
       {% endfor %}
     </div>
   </section>

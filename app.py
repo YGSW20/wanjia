@@ -131,7 +131,9 @@ def home():
         WHERE pr.in_stock = 1
         GROUP BY p.id ORDER BY p.series, p.id
     ''').fetchall()
-    return render_template('index.html', hot=hot)
+    # Top 6 below-MSRP deals for hero section
+    deals = [p for p in hot if p['min_price'] < p['msrp']][:6]
+    return render_template('index.html', hot=hot, deals=deals)
 
 @app.route('/search')
 def search():
